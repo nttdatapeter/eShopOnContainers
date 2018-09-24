@@ -6,8 +6,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Steeltoe.Extensions.Configuration.CloudFoundry;
 using System;
 using System.IO;
+
 namespace Microsoft.eShopOnContainers.Services.Catalog.API
 {
     public class Program
@@ -32,35 +34,38 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API
 
         public static IWebHost BuildWebHost(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
-             .UseStartup<Startup>()
+                .UseConfiguration(new ConfigurationBuilder().AddCommandLine(args).Build())
+                .UseCloudFoundryHosting()
+                .AddCloudFoundry()
+                .UseStartup<Startup>()
                 .UseApplicationInsights()
                 .UseHealthChecks("/hc")
                 .UseContentRoot(Directory.GetCurrentDirectory())
                 .UseWebRoot("Pics")
-                .ConfigureAppConfiguration((builderContext, config) =>
-                {
-                    var builtConfig = config.Build();
+                // .ConfigureAppConfiguration((builderContext, config) =>
+                // {
+                //     var builtConfig = config.Build();
 
-                    var configurationBuilder = new ConfigurationBuilder();
+                //     var configurationBuilder = new ConfigurationBuilder();
 
-                    if (Convert.ToBoolean(builtConfig["UseVault"]))
-                    {
-                        configurationBuilder.AddAzureKeyVault(
-                            $"https://{builtConfig["Vault:Name"]}.vault.azure.net/",
-                            builtConfig["Vault:ClientId"],
-                            builtConfig["Vault:ClientSecret"]);
-                    }
+                //     if (Convert.ToBoolean(builtConfig["UseVault"]))
+                //     {
+                //         configurationBuilder.AddAzureKeyVault(
+                //             $"https://{builtConfig["Vault:Name"]}.vault.azure.net/",
+                //             builtConfig["Vault:ClientId"],
+                //             builtConfig["Vault:ClientSecret"]);
+                //     }
 
-                    configurationBuilder.AddEnvironmentVariables();
+                //     configurationBuilder.AddEnvironmentVariables();
 
-                    config.AddConfiguration(configurationBuilder.Build());
-                })
-                .ConfigureLogging((hostingContext, builder) =>
-                {
-                    builder.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
-                    builder.AddConsole();
-                    builder.AddDebug();
-                })                
+                //     config.AddConfiguration(configurationBuilder.Build());
+                // })
+                // .ConfigureLogging((hostingContext, builder) =>
+                // {
+                //     builder.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
+                //     builder.AddConsole();
+                //     builder.AddDebug();
+                // })                
                 .Build();    
     }
 }

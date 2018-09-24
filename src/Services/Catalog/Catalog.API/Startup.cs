@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.ServiceBus;
-using Microsoft.EntityFrameworkCore;
+//using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.eShopOnContainers.BuildingBlocks.EventBus;
 using Microsoft.eShopOnContainers.BuildingBlocks.EventBus.Abstractions;
@@ -25,10 +25,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Pivotal.Discovery.Client;
 using RabbitMQ.Client;
 using System;
 using System.Data.Common;
 using System.Reflection;
+using Steeltoe.CloudFoundry.Connector.SqlServer.EFCore;
 
 namespace Microsoft.eShopOnContainers.Services.Catalog.API
 {
@@ -49,6 +51,7 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API
                 .AddCustomOptions(Configuration)
                 .AddIntegrationServices(Configuration)
                 .AddEventBus(Configuration)
+                .AddDiscoveryClient(Configuration)
                 .AddSwagger();
 
             var container = new ContainerBuilder();
@@ -79,6 +82,8 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API
             app.UseCors("CorsPolicy");
 
             app.UseMvcWithDefaultRoute();
+            
+            app.UseDiscoveryClient();
 
             app.UseSwagger()
               .UseSwaggerUI(c =>
@@ -159,13 +164,7 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API
         {
             services.AddDbContext<CatalogContext>(options =>
             {
-                options.UseSqlServer(configuration["ConnectionString"],
-                                     sqlServerOptionsAction: sqlOptions =>
-                                     {
-                                         sqlOptions.MigrationsAssembly(typeof(Startup).GetTypeInfo().Assembly.GetName().Name);
-                                         //Configuring Connection Resiliency: https://docs.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency 
-                                         sqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
-                                     });
+                options.UseSqlServer(configuration);
 
                 // Changing default behavior when client evaluation occurs to throw. 
                 // Default in EF Core would be to log a warning when client evaluation is performed.
@@ -175,13 +174,7 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API
 
             services.AddDbContext<IntegrationEventLogContext>(options =>
             {
-                options.UseSqlServer(configuration["ConnectionString"],
-                                     sqlServerOptionsAction: sqlOptions =>
-                                     {
-                                         sqlOptions.MigrationsAssembly(typeof(Startup).GetTypeInfo().Assembly.GetName().Name);
-                                         //Configuring Connection Resiliency: https://docs.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency 
-                                         sqlOptions.EnableRetryOnFailure(maxRetryCount: 10, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null);
-                                     });
+                options.UseSqlServer(configuration);
             });
 
             return services;
@@ -257,7 +250,10 @@ namespace Microsoft.eShopOnContainers.Services.Catalog.API
 
                     var factory = new ConnectionFactory()
                     {
-                        HostName = configuration["EventBusConnection"]
+                        HostName = configuration["EventBusConnection"],
+                        VirtualHost = configuration["EventBusVirtualHost"],
+                        //Port = int.Parse(configuration["EventBusPort"]),
+                        RequestedHeartbeat = 60     
                     };
 
                     if (!string.IsNullOrEmpty(configuration["EventBusUserName"]))

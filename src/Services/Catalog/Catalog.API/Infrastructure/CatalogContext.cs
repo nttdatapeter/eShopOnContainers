@@ -4,6 +4,7 @@
     using EntityConfigurations;
     using Model;
     using Microsoft.EntityFrameworkCore.Design;
+    using Microsoft.Extensions.Configuration;
 
     public class CatalogContext : DbContext
     {
@@ -25,10 +26,16 @@
 
     public class CatalogContextDesignFactory : IDesignTimeDbContextFactory<CatalogContext>
     {
+        private IConfiguration configuration;
+        public CatalogContextDesignFactory (IConfiguration configuration)
+        {
+            this.configuration = configuration;
+        }
         public CatalogContext CreateDbContext(string[] args)
         {
             var optionsBuilder =  new DbContextOptionsBuilder<CatalogContext>()
-                .UseSqlServer("Server=.;Initial Catalog=Microsoft.eShopOnContainers.Services.CatalogDb;Integrated Security=true");
+                .UseSqlServer(configuration["ConnectionString"]);
+                //.UseSqlServer("Server=.;Initial Catalog=Microsoft.eShopOnContainers.Services.CatalogDb;Integrated Security=true");
 
             return new CatalogContext(optionsBuilder.Options);
         }
